@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Repaso Mensual — Anestesiología</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080d12; --surf:#0e1620; --surf2:#162030; --surf3:#1c2a3a;
+  --border:#1a2a3a; --border2:#223344;
+  --accent:#00c8ff; --accent2:#00ff9d;
+  --warn:#ffb800; --danger:#ff3d3d;
+  --text:#ddeeff; --text2:#7a9ab8; --text3:#3d5a75;
+  --mono:'JetBrains Mono',monospace; --sans:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;overflow-x:hidden}
+
+header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#0a1118 0%,rgba(10,17,24,.92) 100%);border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
+.header-inner{max-width:1400px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:700;font-size:16px;letter-spacing:.5px}
+.brand-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.spacer{flex:1}
+.month-nav{display:flex;align-items:center;gap:10px}
+.nav-btn{background:var(--surf2);border:1px solid var(--border2);color:var(--text);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.month-label{font-family:var(--mono);font-weight:600;font-size:15px;min-width:200px;text-align:center}
+.today-btn{padding:6px 14px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-family:var(--mono);font-weight:600;font-size:11px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase}
+.today-btn:hover{filter:brightness(1.1)}
+
+main{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 380px;gap:20px}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+
+.cal-wrap{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:14px}
+.cal-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px;font-family:var(--mono);color:var(--text2);flex-wrap:wrap;gap:8px}
+.progress-bar{flex:1;max-width:200px;height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin:0 10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow-header{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;padding:6px 0;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.cal-cell{background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:6px;min-height:90px;cursor:pointer;transition:all .12s;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
+.cal-cell:hover{border-color:var(--accent);transform:translateY(-1px)}
+.cal-cell.empty{background:transparent;border:1px dashed var(--border);cursor:default;opacity:.3}
+.cal-cell.empty:hover{transform:none;border-color:var(--border)}
+.cal-cell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 16px rgba(0,200,255,.25)}
+.cal-cell.done{background:rgba(0,255,157,.06);border-color:var(--accent2)}
+.cal-cell.past:not(.done){opacity:.55}
+.cal-cell.selected{background:var(--surf3);border-color:var(--accent)}
+
+.cell-date{font-family:var(--mono);font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.cell-day-of-cycle{font-size:9px;color:var(--text3);font-weight:400}
+.cell-topics{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.cell-topic{font-size:9px;color:var(--text2);line-height:1.2;display:flex;gap:3px;align-items:flex-start}
+.cell-topic .modtag{font-family:var(--mono);font-weight:600;flex-shrink:0;font-size:8px}
+.cell-topic-text{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
+.check-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;background:var(--accent2);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+/* Detail panel */
+.detail{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:20px;position:sticky;top:90px;align-self:start}
+.detail-empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.detail-date{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--accent);margin-bottom:4px}
+.detail-cycle{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:18px}
+.detail-topics{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.topic-row{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.topic-mod{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:14px;font-family:var(--mono);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.topic-mod .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.topic-title{font-size:14px;font-weight:500;line-height:1.35}
+.detail-actions{display:flex;flex-direction:column;gap:8px}
+.btn-done{padding:11px;background:var(--accent2);color:var(--bg);border:none;border-radius:6px;font-family:var(--mono);font-weight:700;font-size:12px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:filter .12s}
+.btn-done:hover{filter:brightness(1.1)}
+.btn-undone{padding:11px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-family:var(--mono);font-weight:600;font-size:11px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase}
+.btn-undone:hover{border-color:var(--danger);color:var(--danger)}
+.done-banner{padding:10px;background:rgba(0,255,157,.1);border:1px solid var(--accent2);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent2);text-align:center;margin-bottom:10px}
+
+/* Stats */
+.stats-row{display:flex;gap:8px;margin-top:14px}
+.stat-mini{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center}
+.stat-mini-v{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent)}
+.stat-mini-l{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;font-family:var(--mono);margin-top:2px}
+
+footer{max-width:1400px;margin:0 auto;padding:16px 20px;text-align:center;color:var(--text3);font-size:11px;font-family:var(--mono)}
+footer a{color:var(--text2);text-decoration:none;cursor:pointer}
+footer a:hover{color:var(--danger)}
+
+@media (max-width:640px){
+  .header-inner{flex-direction:column;align-items:stretch}
+  .month-label{min-width:auto;flex:1}
+  .cal-cell{min-height:60px;padding:4px}
+  .cell-topic{font-size:8px}
+  .detail{position:static}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand"><span class="brand-dot"></span>REPASO·MES</div>
+    <div class="spacer"></div>
+    <div class="month-nav">
+      <button class="nav-btn" id="prev-month">‹</button>
+      <div class="month-label" id="month-label"></div>
+      <button class="nav-btn" id="next-month">›</button>
+      <button class="today-btn" id="today-btn">Hoy</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="cal-wrap">
+    <div class="cal-info">
+      <div>Ciclo de <b>99 días</b> · 3 temas/día · 297 temas totales</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div id="progress-text">0 / 0 días</div>
+    </div>
+    <div class="cal-grid">
+      <div class="dow-header">Lun</div><div class="dow-header">Mar</div><div class="dow-header">Mié</div>
+      <div class="dow-header">Jue</div><div class="dow-header">Vie</div><div class="dow-header">Sáb</div><div class="dow-header">Dom</div>
+    </div>
+    <div class="cal-grid" id="cal-grid" style="margin-top:4px"></div>
+  </div>
+
+  <div class="detail" id="detail">
+    <div class="detail-empty">Seleccioná un día del calendario para ver los temas</div>
+  </div>
+</main>
+
+<footer>
+  <span id="footer-stats"></span> · <a id="reset-link">Reiniciar progreso</a>
+</footer>
+
+<script>
+const DATA = {"modules":[{"id":"M1","name":"Bases y Farmacología","color":"#00c8ff"},{"id":"M2","name":"Preanestésica y Vía Aérea","color":"#7b61ff"},{"id":"M3","name":"Monitoreo y Equipamiento","color":"#00ff9d"},{"id":"M4","name":"Anestesia Regional","color":"#ff9d3d"},{"id":"M5","name":"Fisio Intraop / VM","color":"#3dc9ff"},{"id":"M6","name":"Subespecialidades","color":"#c061ff"},{"id":"M7","name":"Críticos y Emergencias","color":"#ff3d6b"},{"id":"M8","name":"Dolor / Misceláneas","color":"#ffd23d"},{"id":"M9","name":"POCUS","color":"#3dffd0"},{"id":"M10","name":"TIVA","color":"#ff61b8"},{"id":"M11","name":"Pediatría","color":"#61c8ff"},{"id":"M12","name":"Cardiovascular","color":"#ff5c5c"},{"id":"M13","name":"Obstetricia","color":"#ff85c4"}],"schedule":[[{"m":"M1","t":"Farmacocinética y farmacodinamia general"},{"m":"M2","t":"Clasificación ASA y valoración preop"},{"m":"M3","t":"Monitoreo básico (ECG, SpO2, PANI)"}],[{"m":"M4","t":"Anatomía supraclavicular y cuello"},{"m":"M5","t":"Fisiología respiratoria aplicada"},{"m":"M6","t":"Neuroanestesia: PIC y craneotomía"}],[{"m":"M7","t":"RCP / ACLS perioperatorio"},{"m":"M8","t":"Fisiopatología de la nocicepción"},{"m":"M9","t":"Física del ultrasonido y knobología"}],[{"m":"M10","t":"Modelo Marsh (propofol)"},{"m":"M11","t":"Fisiología del neonato (CV/Resp/Renal/Térmica)"},{"m":"M12","t":"HTA perioperatoria"}],[{"m":"M13","t":"Cambios fisiológicos del embarazo"},{"m":"M1","t":"Inhalatorios halogenados (sevo/iso/des)"},{"m":"M2","t":"Capacidad funcional y MET"}],[{"m":"M3","t":"Capnografía: interpretación"},{"m":"M4","t":"Anatomía infraclavicular y axilar"},{"m":"M5","t":"VM intraop: modos y parámetros"}],[{"m":"M6","t":"Craneotomía despierto"},{"m":"M7","t":"Hipertermia maligna"},{"m":"M8","t":"Sensibilización periférica y central"}],[{"m":"M9","t":"Eco vascular: TVP"},{"m":"M10","t":"Modelo Schnider"},{"m":"M11","t":"VA pediátrica: anatomía y diferencias"}],[{"m":"M12","t":"Hipertrofia VI concéntrica vs excéntrica"},{"m":"M13","t":"Placenta y flujo uteroplacentario"},{"m":"M1","t":"Óxido nitroso y efecto segundo gas"}],[{"m":"M2","t":"Riesgo CV: RCRI, NSQIP, ACC/AHA"},{"m":"M3","t":"Pulsioximetría: curva e índice de perfusión"},{"m":"M4","t":"Anatomía pared torácica y columna"}],[{"m":"M5","t":"Ventilación protectiva y open lung"},{"m":"M6","t":"Anestesia torácica y ventilación unipulmonar"},{"m":"M7","t":"Anafilaxia perioperatoria"}],[{"m":"M8","t":"Componente neuropático del dolor agudo"},{"m":"M9","t":"Accesos vasculares ecoguiados"},{"m":"M10","t":"Modelo Eleveld (propofol)"}],[{"m":"M11","t":"Intubación pediátrica y SRI modificada"},{"m":"M12","t":"Miocardiopatía hipertrófica obstructiva"},{"m":"M13","t":"Farmacología perinatal y transferencia"}],[{"m":"M1","t":"CAM, CAM despertar, CAM BRA"},{"m":"M2","t":"Ayuno y riesgo de aspiración"},{"m":"M3","t":"PA invasiva: curva y limitaciones"}],[{"m":"M4","t":"Anatomía pared abdominal y columna lumbar"},{"m":"M5","t":"VM en restrictivo extrapulmonar (obeso)"},{"m":"M6","t":"Vascular: aorta abdominal"}],[{"m":"M7","t":"Shock: clasificación y manejo"},{"m":"M8","t":"Escalas de dolor y evaluación"},{"m":"M9","t":"Síndrome aórtico agudo"}],[{"m":"M10","t":"Modelo Minto (remifentanilo)"},{"m":"M11","t":"Laringoespasmo"},{"m":"M12","t":"IC con FE reducida"}],[{"m":"M13","t":"AL en obstetricia"},{"m":"M1","t":"Propofol: farmacología y modelos"},{"m":"M2","t":"Consentimiento informado"}],[{"m":"M3","t":"Monitoreo hemodinámico (GC, VPP/VVS)"},{"m":"M4","t":"Anatomía MMII"},{"m":"M5","t":"VM en SDRA"}],[{"m":"M6","t":"Endarterectomía carotídea"},{"m":"M7","t":"Hemorragia masiva: protocolo"},{"m":"M8","t":"Analgesia preventiva, anticipatoria, protectiva"}],[{"m":"M9","t":"VCI y evaluación de volemia"},{"m":"M10","t":"Modelo Kim / Eleveld remi"},{"m":"M11","t":"Equipamiento VA pediátrica"}],[{"m":"M12","t":"IC con FE preservada"},{"m":"M13","t":"Cesárea: regional vs general"},{"m":"M1","t":"Tiopental sódico"}],[{"m":"M2","t":"Premedicación"},{"m":"M3","t":"BIS / entropía / EEG anestésico"},{"m":"M4","t":"Histología del nervio periférico"}],[{"m":"M5","t":"VM en obstructivo (asma/EPOC)"},{"m":"M6","t":"Trasplante hepático"},{"m":"M7","t":"Hemoderivados y reacciones transfusionales"}],[{"m":"M8","t":"AINEs y COX"},{"m":"M9","t":"Eco en trauma (FAST/eFAST)"},{"m":"M10","t":"TCI: plasma vs sitio efecto"}],[{"m":"M11","t":"Oxigenación apneica y alto flujo"},{"m":"M12","t":"IC descompensada perioperatoria"},{"m":"M13","t":"VA en obstetricia: algoritmos"}],[{"m":"M1","t":"Etomidato"},{"m":"M2","t":"Anatomía y fisiología VA superior"},{"m":"M3","t":"TOF y monitoreo neuromuscular"}],[{"m":"M4","t":"Neuroestimulación: principios"},{"m":"M5","t":"Curvas de VM (flujo-tiempo, presión-tiempo)"},{"m":"M6","t":"Trasplante renal"}],[{"m":"M7","t":"PBM y anemia preoperatoria"},{"m":"M8","t":"Dexametasona en analgesia perioperatoria"},{"m":"M9","t":"Eco pleuropulmonar (BLUE, A/B lines)"}],[{"m":"M10","t":"Vida media contexto-sensible"},{"m":"M11","t":"VA difícil pediátrica (Pierre Robin, Treacher)"},{"m":"M12","t":"Cardiopatía isquémica perioperatoria"}],[{"m":"M13","t":"Analgesia de TDP: técnicas espinales"},{"m":"M1","t":"Ketamina"},{"m":"M2","t":"Predictores de VA difícil"}],[{"m":"M3","t":"Máquina de anestesia: componentes"},{"m":"M4","t":"Ecografía: fundamentos y artefactos"},{"m":"M5","t":"Fisiología CV aplicada"}],[{"m":"M6","t":"Geriátrica y delirio postop"},{"m":"M7","t":"Hemostasia: modelo clásico vs celular"},{"m":"M8","t":"Lidocaína sistémica"}],[{"m":"M9","t":"Eco en intubación y extubación"},{"m":"M10","t":"Sinergia propofol-remifentanilo"},{"m":"M11","t":"VM pediátrica"}],[{"m":"M12","t":"IAM tipo 2 / MINS"},{"m":"M13","t":"CSE en trabajo de parto"},{"m":"M1","t":"Midazolam y benzodiacepinas"}],[{"m":"M2","t":"Preoxigenación: fundamentos y estrategias"},{"m":"M3","t":"Vaporizadores y circuitos"},{"m":"M4","t":"Raquídea"}],[{"m":"M5","t":"Retorno venoso y curva de Starling"},{"m":"M6","t":"Bariátrica y obesidad mórbida"},{"m":"M7","t":"Pruebas estándar de coagulación"}],[{"m":"M8","t":"Gabapentinoides perioperatorios"},{"m":"M9","t":"Eco gástrico y riesgo de aspiración"},{"m":"M10","t":"TIVA pediátrica (Kataria, Paedfusor)"}],[{"m":"M11","t":"Fluidos y glucemia perioperatoria"},{"m":"M12","t":"Estenosis aórtica"},{"m":"M13","t":"Hipotensión post-bloqueo: noradrenalina"}],[{"m":"M1","t":"Flumazenil y resedación"},{"m":"M2","t":"Ventilación con máscara facial"},{"m":"M3","t":"Física: flujo, presión, volumen, resistencia"}],[{"m":"M4","t":"Peridural"},{"m":"M5","t":"Ácido-base: enfoque tradicional"},{"m":"M6","t":"Diabetes mellitus perioperatoria"}],[{"m":"M7","t":"ROTEM / FIBTEM: interpretación"},{"m":"M8","t":"Ketamina en dolor agudo"},{"m":"M9","t":"Eco de vía aérea"}],[{"m":"M10","t":"TIVA en bariátrico"},{"m":"M11","t":"Accesos vasculares pediátricos"},{"m":"M12","t":"Insuficiencia aórtica"}],[{"m":"M13","t":"Morfina neuroaxial: monitoreo (SOAP)"},{"m":"M1","t":"Morfina y meperidina"},{"m":"M2","t":"Laringoscopia directa y técnica"}],[{"m":"M3","t":"Ecuación de movimiento"},{"m":"M4","t":"Combinada espinal-epidural"},{"m":"M5","t":"Ácido-base: Stewart"}],[{"m":"M6","t":"Cirugía tiroidea"},{"m":"M7","t":"Semáforo de la hemostasia"},{"m":"M8","t":"Hiperalgesia inducida por opioides"}],[{"m":"M9","t":"Eco de diafragma"},{"m":"M10","t":"TIVA en neuroanestesia"},{"m":"M11","t":"Premedicación e inducción inhalatoria"}],[{"m":"M12","t":"Estenosis mitral"},{"m":"M13","t":"Complicaciones del bloqueo subaracnoideo"},{"m":"M1","t":"Fentanilo y sufentanilo"}],[{"m":"M2","t":"Videolaringoscopia"},{"m":"M4","t":"Caudal"},{"m":"M5","t":"Trastornos del Na+"}],[{"m":"M6","t":"Feocromocitoma y suprarrenal"},{"m":"M7","t":"Sepsis perioperatoria"},{"m":"M8","t":"Analgesia multimodal segura (AMS)"}],[{"m":"M9","t":"ONSD (nervio óptico)"},{"m":"M10","t":"TIVA en NORA"},{"m":"M11","t":"Delirio postop pediátrico"}],[{"m":"M12","t":"Insuficiencia mitral"},{"m":"M13","t":"Preeclampsia y eclampsia"},{"m":"M1","t":"Remifentanilo"}],[{"m":"M2","t":"Facilitadores: estiletes, Frova, bougie"},{"m":"M4","t":"Bloqueo interescalénico"},{"m":"M5","t":"Trastornos del K+ y Mg++"}],[{"m":"M6","t":"Ambulatoria / fast-track"},{"m":"M7","t":"Hemorragia en trauma"},{"m":"M8","t":"Semáforo farmacológico"}],[{"m":"M9","t":"VExUS: congestión venosa sistémica"},{"m":"M10","t":"TIVA y BIS"},{"m":"M11","t":"Escalas de dolor pediátrico"}],[{"m":"M12","t":"Lesiones mixtas y prótesis valvulares"},{"m":"M13","t":"Diabetes y embarazo"},{"m":"M1","t":"Tramadol, nalbufina, buprenorfina"}],[{"m":"M2","t":"Dispositivos supraglóticos (DSG)"},{"m":"M4","t":"Bloqueo supraclavicular"},{"m":"M5","t":"Trastornos del Ca++ y fósforo"}],[{"m":"M6","t":"NORA (anestesia fuera del quirófano)"},{"m":"M7","t":"ETEV y TEP perioperatorio"},{"m":"M8","t":"DOLOCRISIS: crisis de dolor fuera de quirófano"}],[{"m":"M9","t":"FoCUS: ventanas y protocolo"},{"m":"M10","t":"Bombas y configuración práctica"},{"m":"M11","t":"Tratamiento del dolor agudo pediátrico"}],[{"m":"M12","t":"Tricúspide y pulmonar"},{"m":"M13","t":"Trombofilia y antiagregación"},{"m":"M1","t":"Metadona perioperatoria"}],[{"m":"M2","t":"Algoritmos VA difícil (DAS/ASA)"},{"m":"M4","t":"Bloqueo infraclavicular"},{"m":"M5","t":"Termorregulación e hipotermia perioperatoria"}],[{"m":"M6","t":"Oftalmología"},{"m":"M7","t":"Edema pulmonar por presión negativa"},{"m":"M8","t":"AMS en adulto mayor"}],[{"m":"M9","t":"ETE perioperatoria: vistas básicas"},{"m":"M10","t":"Despertar intraoperatorio (AAGA)"},{"m":"M11","t":"Regional pediátrica: caudal"}],[{"m":"M12","t":"FA: manejo perioperatorio"},{"m":"M13","t":"Hemorragia obstétrica I"},{"m":"M1","t":"Succinilcolina"}],[{"m":"M2","t":"Vortex Approach y líneas de vida"},{"m":"M4","t":"Bloqueo axilar y canal humeral"},{"m":"M5","t":"Posicionamiento y lesiones"}],[{"m":"M6","t":"ORL"},{"m":"M8","t":"AMS en paciente tolerante a opioides"},{"m":"M9","t":"ETE: función VI y VD"}],[{"m":"M10","t":"OFA (Opioid-Free Anesthesia)"},{"m":"M11","t":"Regional pediátrica: ilioinguinal, peneano, femoral"},{"m":"M12","t":"Flutter y TSV"}],[{"m":"M13","t":"Hemorragia obstétrica II (masiva)"},{"m":"M1","t":"BNM no despolarizantes (Roc, Atra, Vec)"},{"m":"M2","t":"CICO y cricotiroidotomía bisturí-bougie-tubo"}],[{"m":"M4","t":"Bloqueos distales MS y Bier"},{"m":"M6","t":"Insuficiencia renal y drogas anestésicas"},{"m":"M8","t":"AMS en obesidad mórbida"}],[{"m":"M9","t":"ETE: válvulas aórtica y mitral"},{"m":"M11","t":"LAST pediátrico"},{"m":"M12","t":"Anticoagulación perioperatoria"}],[{"m":"M13","t":"Aborto séptico"},{"m":"M1","t":"Reversión: neostigmina"},{"m":"M2","t":"Intubación despierto"}],[{"m":"M4","t":"Bloqueo femoral"},{"m":"M6","t":"Insuficiencia hepática perioperatoria"},{"m":"M8","t":"Dolor crónico: taxonomía"}],[{"m":"M9","t":"ETT intermedio: Doppler y valvulopatías"},{"m":"M11","t":"IRA / IRAB y CVAS"},{"m":"M12","t":"TV / FV / tormenta eléctrica"}],[{"m":"M13","t":"Paciente obstétrica crítica"},{"m":"M1","t":"Reversión: sugammadex"},{"m":"M2","t":"Inducción de secuencia rápida"}],[{"m":"M4","t":"Canal aductor / safeno"},{"m":"M8","t":"Dolor oncológico y cuidados paliativos"},{"m":"M11","t":"Asma pediátrica perioperatoria"}],[{"m":"M12","t":"QT largo (congénito y adquirido)"},{"m":"M1","t":"Anestésicos locales: farmacología"},{"m":"M2","t":"Presión cricoidea: evidencia actual"}],[{"m":"M4","t":"Bloqueo obturador"},{"m":"M8","t":"Dolor neuropático crónico"},{"m":"M11","t":"Hipertermia maligna pediátrica"}],[{"m":"M12","t":"Bradiarritmias"},{"m":"M1","t":"LAST: fisiopatología y tratamiento"},{"m":"M4","t":"Ciático: abordajes posteriores y anterior"}],[{"m":"M8","t":"Síndrome de dolor regional complejo (SDRC)"},{"m":"M11","t":"Enfermedades neuromusculares y ECNE"},{"m":"M12","t":"Bloqueos AV"}],[{"m":"M1","t":"Vasopresores (NA, A, fenilefrina, vasopresina)"},{"m":"M4","t":"Ciático poplíteo y bloqueos del pie"},{"m":"M8","t":"Lumbalgia"}],[{"m":"M11","t":"Sangrado masivo pediátrico"},{"m":"M12","t":"WPW perioperatorio"},{"m":"M1","t":"Inotrópicos (dobutamina, milrinona, levosimendán)"}],[{"m":"M4","t":"PENG e iPACK"},{"m":"M8","t":"Cervicocefaleas"},{"m":"M11","t":"Cardiopatías congénitas I (hiperflujo, VU)"}],[{"m":"M12","t":"Síndrome de Brugada"},{"m":"M1","t":"Antiarrítmicos perioperatorios"},{"m":"M4","t":"TAP block"}],[{"m":"M8","t":"NVPO: scores y profilaxis (Apfel)"},{"m":"M11","t":"Cardiopatías congénitas II"},{"m":"M12","t":"CPVT"}],[{"m":"M1","t":"Cristaloides vs coloides"},{"m":"M4","t":"Vaina del recto"},{"m":"M8","t":"Hipotermia y temblor postop"}],[{"m":"M11","t":"Cardiopatía congénita en cirugía no cardíaca"},{"m":"M12","t":"Marcapasos y CDI: modos, imán, EMI"},{"m":"M1","t":"Albúmina y controversias"}],[{"m":"M4","t":"Ilioinguinal / iliohipogástrico"},{"m":"M8","t":"Sedación y MAC"},{"m":"M11","t":"Trauma pediátrico"}],[{"m":"M12","t":"Cardioversión y desfibrilación"},{"m":"M1","t":"Procaína IV (esquemas)"},{"m":"M4","t":"Intercostal y paravertebral"}],[{"m":"M8","t":"Seguridad del paciente y checklist"},{"m":"M11","t":"Quemado pediátrico"},{"m":"M12","t":"GUCH (congénito adulto)"}],[{"m":"M1","t":"Antibioticoterapia perioperatoria"},{"m":"M4","t":"ESP, PECS, serrato"},{"m":"M8","t":"Bioestadística básica y probabilidad"}],[{"m":"M11","t":"Fístula traqueoesofágica"},{"m":"M12","t":"Cirugía cardíaca con CEC"},{"m":"M1","t":"Interacciones farmacológicas relevantes"}],[{"m":"M4","t":"Adyuvantes en regional"},{"m":"M8","t":"Sensibilidad, especificidad, VPP/VPN"},{"m":"M11","t":"Hernia diafragmática congénita"}],[{"m":"M12","t":"Off-pump y MICS"},{"m":"M4","t":"ASRA: regional y anticoagulación"},{"m":"M8","t":"Tipos de diseño de investigación"}],[{"m":"M11","t":"Mielomeningocele y defectos pared abdominal"},{"m":"M12","t":"TAVI y MitraClip"},{"m":"M4","t":"Técnicas continuas con catéter"}],[{"m":"M8","t":"Sesgos, confusión, modificación de efecto"},{"m":"M11","t":"Estenosis pilórica"},{"m":"M12","t":"BCIA / ECMO / LVAD"}],[{"m":"M4","t":"Complicaciones en regional"},{"m":"M11","t":"Cuerpo extraño en VA"},{"m":"M12","t":"Hipertensión pulmonar perioperatoria"}],[{"m":"M11","t":"NORA pediátrico"},{"m":"M12","t":"IC derecha y HTP"},{"m":"M11","t":"Masa mediastinal anterior"}],[{"m":"M12","t":"Tamponade y pericardio"},{"m":"M11","t":"Síndrome de Down y autismo"},{"m":"M12","t":"Trasplante cardíaco"}],[{"m":"M11","t":"Parálisis cerebral"},{"m":"M12","t":"Cirugía no cardíaca en cardiópata"},{"m":"M11","t":"Apnea del prematuro postop"}]]};
+const MODULES = DATA.modules;
+const SCHEDULE = DATA.schedule;       // array de días, cada uno con 3 temas
+const CYCLE = SCHEDULE.length;        // 99
+const MOD = Object.fromEntries(MODULES.map(m => [m.id, m]));
+
+// Anchor: día 1 del ciclo = 1 de enero del año actual (fijo)
+// Para cualquier fecha, dayOfCycle = ((dayOfYear - 1) + offset) % CYCLE
+// Para que no se mueva si el año cambia, usamos un anchor absoluto.
+const ANCHOR_DATE = '2026-01-01';     // día de ciclo = 1
+
+const STORE_KEY = 'repaso-mes-v1';
+
+// ────── STORAGE ──────
+async function load() {
+  if (window.storage?.get) {
+    try { const r = await window.storage.get(STORE_KEY); if (r?.value) return JSON.parse(r.value); } catch(e){}
+  }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch(e){}
+  return { done: {} };  // { 'YYYY-MM-DD': true }
+}
+async function save(s) {
+  const json = JSON.stringify(s);
+  if (window.storage?.set) { try { await window.storage.set(STORE_KEY, json); return; } catch(e){} }
+  try { localStorage.setItem(STORE_KEY, json); } catch(e){}
+}
+
+// ────── DATE UTILS ──────
+function ymd(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function parseYmd(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function daysBetween(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+function dayOfCycle(dateStr) {
+  const diff = daysBetween(parseYmd(ANCHOR_DATE), parseYmd(dateStr));
+  return ((diff % CYCLE) + CYCLE) % CYCLE;  // 0..98
+}
+function todayStr() { return ymd(new Date()); }
+
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// ────── STATE ──────
+let state = { done: {} };
+let viewYear, viewMonth;       // mes mostrado
+let selectedDate = null;       // fecha seleccionada para detalle
+
+// ────── RENDER CALENDAR ──────
+function renderCalendar() {
+  document.getElementById('month-label').textContent = MONTHS[viewMonth] + ' ' + viewYear;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  // Day 1 of month — adjust to Monday-start
+  const first = new Date(viewYear, viewMonth, 1);
+  let startDow = first.getDay();      // 0=Sun..6=Sat
+  let padStart = (startDow + 6) % 7;  // Mon=0
+  for (let i = 0; i < padStart; i++) {
+    const e = document.createElement('div');
+    e.className = 'cal-cell empty';
+    grid.appendChild(e);
+  }
+
+  const lastDay = new Date(viewYear, viewMonth+1, 0).getDate();
+  const today = todayStr();
+  for (let d = 1; d <= lastDay; d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    const ds = ymd(date);
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    if (ds === today) cell.classList.add('today');
+    if (state.done[ds]) cell.classList.add('done');
+    if (ds < today && !state.done[ds]) cell.classList.add('past');
+    if (ds === selectedDate) cell.classList.add('selected');
+
+    const cyc = dayOfCycle(ds);
+    const topics = SCHEDULE[cyc];
+
+    const isDone = !!state.done[ds];
+    const topicsHTML = topics.map(t => {
+      const m = MOD[t.m];
+      return `<div class="cell-topic">
+        <span class="modtag" style="color:${m.color}">${m.id}</span>
+        <span class="cell-topic-text">${t.t}</span>
+      </div>`;
+    }).join('');
+
+    cell.innerHTML = `
+      ${isDone ? '<div class="check-badge">✓</div>' : ''}
+      <div class="cell-date">
+        <span>${d}</span>
+        <span class="cell-day-of-cycle">#${cyc+1}</span>
+      </div>
+      <div class="cell-topics">${topicsHTML}</div>
+    `;
+    cell.addEventListener('click', () => selectDate(ds));
+    grid.appendChild(cell);
+  }
+
+  updateStats();
+}
+
+// ────── DETAIL PANEL ──────
+function selectDate(ds) {
+  selectedDate = ds;
+  renderCalendar();
+  renderDetail();
+}
+
+function renderDetail() {
+  const el = document.getElementById('detail');
+  if (!selectedDate) {
+    el.innerHTML = '<div class="detail-empty">Seleccioná un día del calendario para ver los temas</div>';
+    return;
+  }
+  const cyc = dayOfCycle(selectedDate);
+  const topics = SCHEDULE[cyc];
+  const isDone = !!state.done[selectedDate];
+  const d = parseYmd(selectedDate);
+  const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const dateLabel = dowNames[d.getDay()] + ' ' + d.getDate() + ' de ' + MONTHS[d.getMonth()].toLowerCase();
+
+  const topicsHTML = topics.map(t => {
+    const m = MOD[t.m];
+    return `<div class="topic-row">
+      <div class="topic-mod" style="border:1px solid ${m.color};color:${m.color};background:${m.color}1a">
+        <span class="dot"></span>${m.id} · ${m.name}
+      </div>
+      <div class="topic-title">${t.t}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="detail-date">${dateLabel}</div>
+    <div class="detail-cycle">Día #${cyc+1} del ciclo de 99 días</div>
+    ${isDone ? '<div class="done-banner">✓ Marcado como completado</div>' : ''}
+    <div class="detail-topics">${topicsHTML}</div>
+    <div class="detail-actions">
+      ${isDone
+        ? '<button class="btn-undone" id="btn-toggle">Desmarcar</button>'
+        : '<button class="btn-done" id="btn-toggle">Marcar como hecho</button>'}
+    </div>
+  `;
+  document.getElementById('btn-toggle').addEventListener('click', async () => {
+    if (state.done[selectedDate]) delete state.done[selectedDate];
+    else state.done[selectedDate] = true;
+    await save(state);
+    renderCalendar();
+    renderDetail();
+  });
+}
+
+// ────── STATS ──────
+function updateStats() {
+  // Days done this month
+  const lastDay = new Date(viewYear, viewMonth+1, 0).getDate();
+  let doneInMonth = 0;
+  let pastInMonth = 0;
+  const today = todayStr();
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = ymd(new Date(viewYear, viewMonth, d));
+    if (ds <= today) pastInMonth++;
+    if (state.done[ds]) doneInMonth++;
+  }
+  document.getElementById('progress-fill').style.width = (pastInMonth ? (doneInMonth/pastInMonth*100) : 0) + '%';
+  document.getElementById('progress-text').textContent = `${doneInMonth} / ${pastInMonth} días`;
+
+  // Footer total
+  const totalDone = Object.keys(state.done).length;
+  document.getElementById('footer-stats').textContent =
+    `${totalDone} días completados en total · ${Math.round(totalDone/CYCLE*100)}% del primer ciclo`;
+}
+
+// ────── NAV ──────
+function gotoMonth(y, m) {
+  viewYear = y; viewMonth = m;
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  renderCalendar();
+}
+
+document.getElementById('prev-month').addEventListener('click', () => gotoMonth(viewYear, viewMonth-1));
+document.getElementById('next-month').addEventListener('click', () => gotoMonth(viewYear, viewMonth+1));
+document.getElementById('today-btn').addEventListener('click', () => {
+  const d = new Date();
+  gotoMonth(d.getFullYear(), d.getMonth());
+  selectDate(todayStr());
+});
+document.getElementById('reset-link').addEventListener('click', async () => {
+  if (!confirm('¿Reiniciar todos los días marcados?')) return;
+  state.done = {};
+  await save(state);
+  renderCalendar();
+  renderDetail();
+});
+
+// ────── INIT ──────
+async function init() {
+  state = await load();
+  if (!state.done) state.done = {};
+  const d = new Date();
+  viewYear = d.getFullYear();
+  viewMonth = d.getMonth();
+  selectedDate = todayStr();
+  renderCalendar();
+  renderDetail();
+}
+init();
+</script>
+</body>
+</html>
