@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Repaso Mensual — Anestesiología</title>
+<title>Repaso Mensual — Anestesiología (v2)</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -67,6 +67,14 @@ main{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-colu
 .topic-mod{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:14px;font-family:var(--mono);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
 .topic-mod .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .topic-title{font-size:14px;font-weight:500;line-height:1.35}
+.topic-note-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.note-status{font-family:var(--mono);font-size:9px;color:var(--text3);font-style:italic;text-transform:none;letter-spacing:0}
+.note-status.saved{color:var(--accent2)}
+.note-status.saving{color:var(--warn)}
+.topic-note{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:8px 10px;border-radius:6px;font-family:var(--sans);font-size:12px;line-height:1.4;resize:vertical;min-height:60px;transition:border-color .12s}
+.topic-note:focus{outline:none;border-color:var(--accent)}
+.topic-note::placeholder{color:var(--text3);font-style:italic}
+.note-dot{position:absolute;bottom:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--warn);box-shadow:0 0 4px var(--warn)}
 .detail-actions{display:flex;flex-direction:column;gap:8px}
 .btn-done{padding:11px;background:var(--accent2);color:var(--bg);border:none;border-radius:6px;font-family:var(--mono);font-weight:700;font-size:12px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:filter .12s}
 .btn-done:hover{filter:brightness(1.1)}
@@ -151,7 +159,7 @@ async function load() {
     try { const r = await window.storage.get(STORE_KEY); if (r?.value) return JSON.parse(r.value); } catch(e){}
   }
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch(e){}
-  return { done: {} };  // { 'YYYY-MM-DD': true }
+  return { done: {}, notes: {} };  // done: { 'YYYY-MM-DD': true }, notes: { 'topic_title': 'text' }
 }
 async function save(s) {
   const json = JSON.stringify(s);
@@ -215,6 +223,7 @@ function renderCalendar() {
     const topics = SCHEDULE[cyc];
 
     const isDone = !!state.done[ds];
+    const hasNotes = topics.some(t => state.notes[t.t] && state.notes[t.t].trim().length > 0);
     const topicsHTML = topics.map(t => {
       const m = MOD[t.m];
       return `<div class="cell-topic">
@@ -225,6 +234,7 @@ function renderCalendar() {
 
     cell.innerHTML = `
       ${isDone ? '<div class="check-badge">✓</div>' : ''}
+      ${hasNotes && !isDone ? '<div class="note-dot" title="Tenés notas en algún tema"></div>' : ''}
       <div class="cell-date">
         <span>${d}</span>
         <span class="cell-day-of-cycle">#${cyc+1}</span>
@@ -258,13 +268,22 @@ function renderDetail() {
   const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const dateLabel = dowNames[d.getDay()] + ' ' + d.getDate() + ' de ' + MONTHS[d.getMonth()].toLowerCase();
 
-  const topicsHTML = topics.map(t => {
+  const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const topicsHTML = topics.map((t, idx) => {
     const m = MOD[t.m];
+    const existingNote = state.notes[t.t] || '';
     return `<div class="topic-row">
       <div class="topic-mod" style="border:1px solid ${m.color};color:${m.color};background:${m.color}1a">
         <span class="dot"></span>${m.id} · ${m.name}
       </div>
       <div class="topic-title">${t.t}</div>
+      <div class="topic-note-label">
+        <span>Mi progreso / dónde quedé</span>
+        <span class="note-status" id="note-status-${idx}">${existingNote ? 'guardado' : ''}</span>
+      </div>
+      <textarea class="topic-note" id="note-${idx}" data-topic="${escHtml(t.t)}"
+        placeholder="Ej: leí páginas 340-360 del Miller. Falta cuadro de dosis. Sigue por acá la próxima vez.">${escHtml(existingNote)}</textarea>
     </div>`;
   }).join('');
 
@@ -279,12 +298,35 @@ function renderDetail() {
         : '<button class="btn-done" id="btn-toggle">Marcar como hecho</button>'}
     </div>
   `;
+
   document.getElementById('btn-toggle').addEventListener('click', async () => {
     if (state.done[selectedDate]) delete state.done[selectedDate];
     else state.done[selectedDate] = true;
     await save(state);
     renderCalendar();
     renderDetail();
+  });
+
+  // Bind textareas with debounced autosave
+  topics.forEach((t, idx) => {
+    const ta = document.getElementById(`note-${idx}`);
+    const status = document.getElementById(`note-status-${idx}`);
+    let timer = null;
+    ta.addEventListener('input', () => {
+      status.textContent = 'escribiendo…';
+      status.className = 'note-status saving';
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const val = ta.value.trim();
+        if (val) state.notes[t.t] = val;
+        else delete state.notes[t.t];
+        await save(state);
+        status.textContent = val ? 'guardado' : '';
+        status.className = 'note-status saved';
+        // refresh calendar for note-dot indicator
+        renderCalendar();
+      }, 500);
+    });
   });
 }
 
@@ -305,8 +347,9 @@ function updateStats() {
 
   // Footer total
   const totalDone = Object.keys(state.done).length;
+  const totalNotes = Object.keys(state.notes || {}).length;
   document.getElementById('footer-stats').textContent =
-    `${totalDone} días completados en total · ${Math.round(totalDone/CYCLE*100)}% del primer ciclo`;
+    `${totalDone} días completados · ${totalNotes} temas con notas · ${Math.round(totalDone/CYCLE*100)}% del primer ciclo`;
 }
 
 // ────── NAV ──────
@@ -325,8 +368,12 @@ document.getElementById('today-btn').addEventListener('click', () => {
   selectDate(todayStr());
 });
 document.getElementById('reset-link').addEventListener('click', async () => {
-  if (!confirm('¿Reiniciar todos los días marcados?')) return;
-  state.done = {};
+  const opt = prompt('Qué querés reiniciar?\n\n1 = Solo días marcados (mantener notas)\n2 = Solo notas (mantener días marcados)\n3 = Todo\n\nEscribí 1, 2 o 3 (o cancelá):');
+  if (!opt) return;
+  if (opt === '1') { state.done = {}; }
+  else if (opt === '2') { state.notes = {}; }
+  else if (opt === '3') { state.done = {}; state.notes = {}; }
+  else { alert('Opción inválida'); return; }
   await save(state);
   renderCalendar();
   renderDetail();
@@ -336,6 +383,7 @@ document.getElementById('reset-link').addEventListener('click', async () => {
 async function init() {
   state = await load();
   if (!state.done) state.done = {};
+  if (!state.notes) state.notes = {};
   const d = new Date();
   viewYear = d.getFullYear();
   viewMonth = d.getMonth();
