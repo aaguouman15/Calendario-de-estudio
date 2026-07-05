@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Repaso Mensual — Anestesiología (v2)</title>
+<title>Repaso Mensual — Anestesiología (v3)</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -56,6 +56,10 @@ main{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-colu
 .cell-topic .modtag{font-family:var(--mono);font-weight:600;flex-shrink:0;font-size:8px}
 .cell-topic-text{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
 .check-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;background:var(--accent2);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cell-reinforce{margin-top:3px;padding-top:3px;border-top:1px dashed var(--border2);display:flex;flex-direction:column;gap:2px}
+.cell-reinforce-item{font-size:9px;color:var(--warn);line-height:1.2;display:flex;gap:3px;align-items:flex-start}
+.cell-reinforce-item .rf-icon{flex-shrink:0}
+.cell-reinforce-item .cell-topic-text{color:var(--warn)}
 
 /* Detail panel */
 .detail{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:20px;position:sticky;top:90px;align-self:start}
@@ -81,6 +85,14 @@ main{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-colu
 .btn-undone{padding:11px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-family:var(--mono);font-weight:600;font-size:11px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase}
 .btn-undone:hover{border-color:var(--danger);color:var(--danger)}
 .done-banner{padding:10px;background:rgba(0,255,157,.1);border:1px solid var(--accent2);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent2);text-align:center;margin-bottom:10px}
+
+/* Reinforcement (spaced repetition) */
+.section-title{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.section-title .rf-icon{color:var(--warn)}
+.reinforce-row{background:var(--surf2);border:1px solid var(--warn);border-left-width:3px;border-radius:8px;padding:12px;margin-bottom:10px}
+.reinforce-stage{font-family:var(--mono);font-size:9px;color:var(--warn);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.btn-reinforce{width:100%;margin-top:10px;padding:9px;background:var(--warn);color:var(--bg);border:none;border-radius:6px;font-family:var(--mono);font-weight:700;font-size:11px;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:filter .12s}
+.btn-reinforce:hover{filter:brightness(1.1)}
 
 /* Stats */
 .stats-row{display:flex;gap:8px;margin-top:14px}
@@ -145,6 +157,9 @@ const MODULES = DATA.modules;
 const SCHEDULE = DATA.schedule;       // array de días, cada uno con 3 temas
 const CYCLE = SCHEDULE.length;        // 99
 const MOD = Object.fromEntries(MODULES.map(m => [m.id, m]));
+// Mapa título de tema → módulo (para poder mostrar tag de color en los repasos de refuerzo)
+const TOPIC_MOD = {};
+SCHEDULE.forEach(day => day.forEach(t => { TOPIC_MOD[t.t] = t.m; }));
 
 // Anchor: día 1 del ciclo = 1 de enero del año actual (fijo)
 // Para cualquier fecha, dayOfCycle = ((dayOfYear - 1) + offset) % CYCLE
@@ -153,13 +168,56 @@ const ANCHOR_DATE = '2026-01-01';     // día de ciclo = 1
 
 const STORE_KEY = 'repaso-mes-v1';
 
+// ────── REPETICIÓN ESPACIADA (refuerzo) ──────
+// Intervalos en días desde el evento anterior: estudio → +3 → +10 → +25 → +60
+const INTERVALS = [3, 10, 25, 60];
+
+function addDays(dateStr, n) {
+  const d = parseYmd(dateStr);
+  d.setDate(d.getDate() + n);
+  return ymd(d);
+}
+
+// Crea/reinicia la cadena de refuerzo de un tema a partir de la fecha en que se estudió.
+function startReinforcement(topicTitle, studiedDate) {
+  return { stage: 0, lastDate: studiedDate, nextDate: addDays(studiedDate, INTERVALS[0]) };
+}
+
+// Avanza una cadena de refuerzo un paso (se llama al marcar el repaso como hecho).
+function advanceReinforcement(entry) {
+  const newStage = entry.stage + 1;
+  if (newStage >= INTERVALS.length) {
+    return { stage: INTERVALS.length, lastDate: entry.nextDate, nextDate: null }; // ciclo de refuerzo completo
+  }
+  return { stage: newStage, lastDate: entry.nextDate, nextDate: addDays(entry.nextDate, INTERVALS[newStage]) };
+}
+
+// Migración: a partir del historial de días marcados como hechos, siembra las cadenas de
+// refuerzo sin generar un backlog — si ya pasaron varios intervalos sin registrar acción,
+// avanza la cadena hasta el próximo paso pendiente en vez de acumular repasos atrasados.
+function seedReinforcementFromHistory(state) {
+  const today = todayStr();
+  const doneDates = Object.keys(state.done).sort(); // ascendente
+  for (const ds of doneDates) {
+    const topics = SCHEDULE[dayOfCycle(ds)];
+    for (const t of topics) {
+      let entry = startReinforcement(t.t, ds);
+      while (entry.nextDate && entry.nextDate < today) {
+        entry = advanceReinforcement(entry);
+      }
+      state.reinforcement[t.t] = entry;
+    }
+  }
+  state._reinforcementSeeded = true;
+}
+
 // ────── STORAGE ──────
 async function load() {
   if (window.storage?.get) {
     try { const r = await window.storage.get(STORE_KEY); if (r?.value) return JSON.parse(r.value); } catch(e){}
   }
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch(e){}
-  return { done: {}, notes: {} };  // done: { 'YYYY-MM-DD': true }, notes: { 'topic_title': 'text' }
+  return { done: {}, notes: {}, reinforcement: {} };  // done: { 'YYYY-MM-DD': true }, notes: { 'topic_title': 'text' }, reinforcement: { 'topic_title': {stage,lastDate,nextDate} }
 }
 async function save(s) {
   const json = JSON.stringify(s);
@@ -190,6 +248,16 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 let state = { done: {} };
 let viewYear, viewMonth;       // mes mostrado
 let selectedDate = null;       // fecha seleccionada para detalle
+
+// ────── REFUERZO: consultas ──────
+function getReinforcementsForDate(ds) {
+  const out = [];
+  for (const title in state.reinforcement) {
+    const entry = state.reinforcement[title];
+    if (entry.nextDate === ds) out.push({ title, entry });
+  }
+  return out;
+}
 
 // ────── RENDER CALENDAR ──────
 function renderCalendar() {
@@ -232,6 +300,14 @@ function renderCalendar() {
       </div>`;
     }).join('');
 
+    const reinforceItems = getReinforcementsForDate(ds);
+    const reinforceHTML = reinforceItems.length ? `<div class="cell-reinforce">${
+      reinforceItems.map(r => `<div class="cell-reinforce-item">
+        <span class="rf-icon">🔁</span>
+        <span class="cell-topic-text">${r.title}</span>
+      </div>`).join('')
+    }</div>` : '';
+
     cell.innerHTML = `
       ${isDone ? '<div class="check-badge">✓</div>' : ''}
       ${hasNotes && !isDone ? '<div class="note-dot" title="Tenés notas en algún tema"></div>' : ''}
@@ -240,6 +316,7 @@ function renderCalendar() {
         <span class="cell-day-of-cycle">#${cyc+1}</span>
       </div>
       <div class="cell-topics">${topicsHTML}</div>
+      ${reinforceHTML}
     `;
     cell.addEventListener('click', () => selectDate(ds));
     grid.appendChild(cell);
@@ -287,6 +364,26 @@ function renderDetail() {
     </div>`;
   }).join('');
 
+  const reinforceItems = getReinforcementsForDate(selectedDate);
+  const reinforceHTML = reinforceItems.length ? `
+    <div class="section-title"><span class="rf-icon">🔁</span>Repasos de refuerzo (${reinforceItems.length})</div>
+    <div class="detail-topics">
+      ${reinforceItems.map((r, idx) => {
+        const modId = TOPIC_MOD[r.title];
+        const m = MOD[modId] || { color: '#7a9ab8', name: '' };
+        const stageNum = r.entry.stage + 1; // repaso #1..4
+        return `<div class="reinforce-row">
+          <div class="topic-mod" style="border:1px solid ${m.color};color:${m.color};background:${m.color}1a">
+            <span class="dot"></span>${modId || ''} · ${m.name}
+          </div>
+          <div class="topic-title">${r.title}</div>
+          <div class="reinforce-stage">Repaso ${stageNum} de ${INTERVALS.length}</div>
+          <button class="btn-reinforce" id="rf-btn-${idx}">Marcar repaso hecho</button>
+        </div>`;
+      }).join('')}
+    </div>
+  ` : '';
+
   el.innerHTML = `
     <div class="detail-date">${dateLabel}</div>
     <div class="detail-cycle">Día #${cyc+1} del ciclo de 99 días</div>
@@ -297,14 +394,32 @@ function renderDetail() {
         ? '<button class="btn-undone" id="btn-toggle">Desmarcar</button>'
         : '<button class="btn-done" id="btn-toggle">Marcar como hecho</button>'}
     </div>
+    ${reinforceHTML}
   `;
 
   document.getElementById('btn-toggle').addEventListener('click', async () => {
-    if (state.done[selectedDate]) delete state.done[selectedDate];
-    else state.done[selectedDate] = true;
+    if (state.done[selectedDate]) {
+      delete state.done[selectedDate];
+    } else {
+      state.done[selectedDate] = true;
+      // Al marcar el día como estudiado, (re)inicia la cadena de refuerzo de sus 3 temas
+      topics.forEach(t => { state.reinforcement[t.t] = startReinforcement(t.t, selectedDate); });
+    }
     await save(state);
     renderCalendar();
     renderDetail();
+  });
+
+  // Botones "Marcar repaso hecho" por cada tema en refuerzo ese día
+  reinforceItems.forEach((r, idx) => {
+    const btn = document.getElementById(`rf-btn-${idx}`);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      state.reinforcement[r.title] = advanceReinforcement(state.reinforcement[r.title]);
+      await save(state);
+      renderCalendar();
+      renderDetail();
+    });
   });
 
   // Bind textareas with debounced autosave
@@ -348,8 +463,9 @@ function updateStats() {
   // Footer total
   const totalDone = Object.keys(state.done).length;
   const totalNotes = Object.keys(state.notes || {}).length;
+  const pendingReinforce = Object.values(state.reinforcement || {}).filter(e => e.nextDate).length;
   document.getElementById('footer-stats').textContent =
-    `${totalDone} días completados · ${totalNotes} temas con notas · ${Math.round(totalDone/CYCLE*100)}% del primer ciclo`;
+    `${totalDone} días completados · ${totalNotes} temas con notas · ${pendingReinforce} repasos de refuerzo en curso · ${Math.round(totalDone/CYCLE*100)}% del primer ciclo`;
 }
 
 // ────── NAV ──────
@@ -368,11 +484,12 @@ document.getElementById('today-btn').addEventListener('click', () => {
   selectDate(todayStr());
 });
 document.getElementById('reset-link').addEventListener('click', async () => {
-  const opt = prompt('Qué querés reiniciar?\n\n1 = Solo días marcados (mantener notas)\n2 = Solo notas (mantener días marcados)\n3 = Todo\n\nEscribí 1, 2 o 3 (o cancelá):');
+  const opt = prompt('Qué querés reiniciar?\n\n1 = Solo días marcados (mantener notas y refuerzo)\n2 = Solo notas (mantener días y refuerzo)\n3 = Solo repasos de refuerzo\n4 = Todo\n\nEscribí 1, 2, 3 o 4 (o cancelá):');
   if (!opt) return;
   if (opt === '1') { state.done = {}; }
   else if (opt === '2') { state.notes = {}; }
-  else if (opt === '3') { state.done = {}; state.notes = {}; }
+  else if (opt === '3') { state.reinforcement = {}; }
+  else if (opt === '4') { state.done = {}; state.notes = {}; state.reinforcement = {}; }
   else { alert('Opción inválida'); return; }
   await save(state);
   renderCalendar();
@@ -384,6 +501,13 @@ async function init() {
   state = await load();
   if (!state.done) state.done = {};
   if (!state.notes) state.notes = {};
+  if (!state.reinforcement) state.reinforcement = {};
+  // Si nunca se sembró el refuerzo (versión anterior sin este sistema), lo hacemos
+  // una sola vez a partir del historial de días ya marcados como hechos.
+  if (!state._reinforcementSeeded) {
+    seedReinforcementFromHistory(state);
+    await save(state);
+  }
   const d = new Date();
   viewYear = d.getFullYear();
   viewMonth = d.getMonth();
